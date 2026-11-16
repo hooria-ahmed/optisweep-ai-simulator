@@ -9,6 +9,8 @@
 > **What happens when an autonomous robot has a list of places to visit, strict rules on *when* to visit them, and walls blocking the way?**  
 > **OptiSweep AI** is a from-scratch Python simulation built to explore how classical Artificial Intelligence solves this exact problem by splitting it into two distinct "brains": a **Constraint Satisfaction (CSP) Scheduler** and a **Graph-Search Navigator**.
 
+> 📦 **Looking for the original CLI / notebook-only version?** Check out the [original non-GUI repository](https://github.com/Dev-Rayyan-Ahmed/optisweep-ai).
+
 ---
 
 ## 🎮 The Game: OPTISWEEP AI — Autonomous Cleaning Robot Simulator
@@ -238,8 +240,8 @@ You can design your own maps and scheduling puzzles by editing the plain-text co
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Dev-Rayyan-Ahmed/optisweep-ai.git
-cd optisweep-ai
+git clone https://github.com/hooria-ahmed/optisweep-ai-simulator.git
+cd optisweep-ai-simulator
 ```
 
 ### 2. Install Dependencies
