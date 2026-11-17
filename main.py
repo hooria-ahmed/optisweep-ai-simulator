@@ -4,6 +4,12 @@ Run with:  python main.py
 """
 import sys
 
+# Must happen before pygame/SDL is imported so the window is never
+# bitmap-upscaled by Windows (which would blur the entire GUI).
+from config.dpi import enable_hidpi
+
+enable_hidpi()
+
 
 def main():
     try:

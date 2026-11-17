@@ -3,6 +3,11 @@ import math
 import os
 import random
 
+# Keep native-pixel rendering when launched directly (tests, notebook, etc.).
+from config.dpi import enable_hidpi
+
+enable_hidpi()
+
 import pygame
 
 from config import settings as S
@@ -62,6 +67,10 @@ class App:
         if headless:
             self.window = pygame.display.set_mode((S.WIDTH, S.HEIGHT))
         else:
+            # Info() must be queried *before* set_mode(): it reports the
+            # desktop size beforehand, but the window size afterwards.  With
+            # DPI awareness enabled it reports physical pixels, so on a normal
+            # 1080p screen `scale` is 1.0 and the canvas is presented 1:1.
             info = pygame.display.Info()
             scale = 1.0
             if info.current_w > 0 and info.current_h > 0:      # unknown on some drivers
@@ -69,6 +78,8 @@ class App:
             size = (max(640, int(S.WIDTH * scale)), max(360, int(S.HEIGHT * scale)))
             self.window = pygame.display.set_mode(size, pygame.RESIZABLE)
         self.canvas = pygame.Surface((S.WIDTH, S.HEIGHT))
+        self._scaled = None                  # cached smoothscale result
+        self._scaled_size = None
         self.clock = pygame.time.Clock()
         self.audio = Audio(enabled=sound and not headless)
         self.state = MissionState()
@@ -183,9 +194,22 @@ class App:
         ui.text(surf, S.APP_NAME, (S.WIDTH - 246, 30), 14, S.CYAN, bold=True, anchor="midright")
 
     # ------------------------------------------------------------ main loop --
-    def to_logical(self, pos):
+    def _viewport(self):
+        """Window rectangle that the logical canvas is drawn into.
+
+        Letterboxing preserves the 16:9 aspect ratio when the window is
+        resized, so text is never stretched or squashed.
+        """
         ww, wh = self.window.get_size()
-        return (int(pos[0] * S.WIDTH / max(1, ww)), int(pos[1] * S.HEIGHT / max(1, wh)))
+        scale = min(ww / S.WIDTH, wh / S.HEIGHT)
+        vw = max(1, int(round(S.WIDTH * scale)))
+        vh = max(1, int(round(S.HEIGHT * scale)))
+        return pygame.Rect((ww - vw) // 2, (wh - vh) // 2, vw, vh)
+
+    def to_logical(self, pos):
+        vp = self._viewport()
+        return (int(round((pos[0] - vp.x) * S.WIDTH / max(1, vp.w))),
+                int(round((pos[1] - vp.y) * S.HEIGHT / max(1, vp.h))))
 
     def translate(self, event):
         if event.type in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION):
@@ -296,10 +320,16 @@ class App:
             veil.fill(S.DARK)
             veil.set_alpha(int(255 * ui.ease(min(1.0, self._fade))))
             surf.blit(veil, (0, 0))
-        if self.window.get_size() == (S.WIDTH, S.HEIGHT):
-            self.window.blit(surf, (0, 0))
+        vp = self._viewport()
+        self.window.fill(S.DARK)             # letterbox bars, if any
+        if vp.size == (S.WIDTH, S.HEIGHT):
+            self.window.blit(surf, vp.topleft)
         else:
-            pygame.transform.smoothscale(surf, self.window.get_size(), self.window)
+            if self._scaled_size != vp.size:
+                self._scaled = pygame.Surface(vp.size)
+                self._scaled_size = vp.size
+            pygame.transform.smoothscale(surf, vp.size, self._scaled)
+            self.window.blit(self._scaled, vp.topleft)
         pygame.display.flip()
 
     def frame(self, dt, events=()):

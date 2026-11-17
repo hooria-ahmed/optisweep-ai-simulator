@@ -104,6 +104,10 @@ Notes:
 
 - Graphics are drawn with code and sound effects are synthesised at start-up, so there are no
   image, font or audio asset files to install. Without an audio device the game runs silently.
+- The UI uses a fixed 1600x900 logical canvas. On Windows the process is marked per-monitor DPI
+  aware before SDL starts (`config/dpi.py`), so the window is sized in physical pixels and the
+  canvas is presented 1:1 - this keeps text sharp on 125%/150% scaled displays. Resizing the
+  window preserves the 16:9 aspect ratio with letterboxing.
 - Environments saved from the editor go to `environments/`. **Play this environment** also writes a
   starter `Schedule_<name>.txt` next to it (one slot per dirty location, the sample's five rules);
   edit that file or pick another schedule in Mission Selection.

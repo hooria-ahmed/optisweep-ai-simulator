@@ -119,6 +119,21 @@ class Navigation(GuiTestCase):
         self.assertFalse(app.audio.music_muted)
         self.assertEqual(app.to_logical((800, 450)), (800, 450))
 
+    def test_resize_letterbox_preserves_aspect_and_mouse_mapping(self):
+        app = self.app
+        app.window = pygame.display.set_mode((1200, 800), pygame.RESIZABLE)
+        try:
+            vp = app._viewport()
+            self.assertEqual((vp.w, vp.h), (1200, 675))   # 16:9, letterboxed
+            self.assertEqual(vp.y, 62)
+            cx, cy = app.to_logical((600, vp.centery))
+            self.assertEqual(cx, 800)
+            self.assertIn(cy, (449, 450, 451))           # integer centre rounding
+            self.assertEqual(app.to_logical((vp.x, vp.y)), (0, 0))
+            app.frame(0.016)                              # scaled draw path
+        finally:
+            app.window = pygame.display.set_mode((S.WIDTH, S.HEIGHT))
+
     def test_back_buttons_navigation(self):
         app = self.app
         # 1. Menu -> Analytics -> Back Button -> Menu
