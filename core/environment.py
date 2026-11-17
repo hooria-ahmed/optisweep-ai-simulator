@@ -342,3 +342,96 @@ def format_schedule(num_slots, precedence, latest_slot):
     lines.append(str(len(latest_slot)))
     lines += [f"({a},{b})" for a, b in latest_slot]
     return "\n".join(lines) + "\n"
+
+
+def check_schedule(num_slots, precedence, latest_slot, dirty_variables):
+    """Validate schedule rules that are not in a file yet.
+
+    Mirrors the checks made by :func:`load_schedule_checked` so the schedule
+    editor reports exactly the same errors as the loader, before anything is
+    written to disk.  Returns ``(problems, warnings)``; an empty ``problems``
+    list means the file would load successfully.  Warnings describe schedules
+    that are well-formed but cannot be solved (too few slots, precedence
+    cycles, too many deadlines packed into the early slots), which the CSP
+    layer reports as infeasible.
+    """
+    problems, warnings = [], []
+    known = set(dirty_variables)
+    labels = ", ".join(sorted(known, key=_label_key)) or "(none)"
+    if num_slots < 1:
+        problems.append("The number of time slots must be at least 1.")
+
+    for a, b in precedence:
+        for task in (a, b):
+            if task not in known:
+                problems.append(f"invalid task label '{task}' in precedence ({a},{b}); "
+                                f"the environment defines {labels}.")
+        if a == b:
+            problems.append(f"precedence ({a},{b}) relates a task to itself.")
+
+    slots = {f"T{i + 1}" for i in range(num_slots)}
+    for task, slot in latest_slot:
+        if task not in known:
+            problems.append(f"invalid task label '{task}' in latest-slot ({task},{slot}).")
+        if slot not in slots:
+            problems.append(f"invalid time slot '{slot}' in latest-slot ({task},{slot}); "
+                            f"only T1..T{num_slots} exist.")
+
+    if num_slots < len(known):
+        warnings.append(f"Only {num_slots} time slot(s) for {len(known)} task(s): "
+                        "the CSP solver will report the mission as infeasible.")
+
+    graph = {}
+    for a, b in precedence:
+        graph.setdefault(a, set()).add(b)
+    visiting, done, cycle = set(), set(), []
+
+    def visit(node, stack):
+        if node in visiting:
+            cycle.extend(stack[stack.index(node):] + [node])
+            return True
+        if node in done:
+            return False
+        visiting.add(node)
+        for nxt in sorted(graph.get(node, ())):
+            if visit(nxt, stack + [node]):
+                return True
+        visiting.discard(node)
+        done.add(node)
+        return False
+
+    for node in sorted(graph, key=_label_key):
+        if visit(node, []):
+            break
+    if cycle:
+        warnings.append("Precedence cycle: " + " -> ".join(cycle))
+
+    # One task per time slot: if k tasks all have to be finished by T_k, the
+    # CSP cannot assign them (only T1..Tk exist).  Propagate precedence first:
+    # "A before B" makes A effectively due one slot earlier than B.  A cycle
+    # is already reported above, so skip propagation in that case (otherwise
+    # it would produce misleading "before T1" messages).
+    if not cycle:
+        effective = {task: num_slots for task in known}
+        for task, slot in latest_slot:
+            if task in effective and slot in slots:
+                effective[task] = min(effective[task], int(slot[1:]))
+        for _ in range(len(known)):
+            changed = False
+            for a, b in precedence:
+                if a in effective and b in effective and effective[b] - 1 < effective[a]:
+                    effective[a] = effective[b] - 1
+                    changed = True
+            if not changed:
+                break
+        if any(limit < 1 for limit in effective.values()):
+            warnings.append("Rules force a task before T1: the mission is infeasible.")
+        else:
+            for k in range(1, num_slots + 1):
+                due = [t for t in sorted(effective, key=_label_key) if effective[t] <= k]
+                if len(due) > k:
+                    warnings.append(
+                        f"Impossible deadlines: {len(due)} task(s) must be cleaned by T{k}, "
+                        f"but only {k} slot(s) (T1..T{k}) exist: {', '.join(due)}.")
+                    break
+    return problems, warnings

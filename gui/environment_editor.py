@@ -77,8 +77,9 @@ class EnvironmentEditor(Screen):
         self.widgets.add(ui.Button((x, 722, 228, 46), "VALIDATE ENVIRONMENT", self.validate, "blue", size=13))
         self.widgets.add(ui.Button((x + 237, 722, 228, 46), "SAVE ENVIRONMENT", self.save, "green", size=13))
         self.widgets.add(ui.Button((x + 474, 722, 228, 46), "LOAD ENVIRONMENT", self.load, size=13))
-        self.widgets.add(ui.Button((x, 780, 465, 54), "PLAY THIS ENVIRONMENT", self.play, "primary", size=18))
-        self.widgets.add(ui.Button((x + 474, 780, 228, 54), "MAIN MENU", lambda: app.go("menu"), size=15))
+        self.widgets.add(ui.Button((x, 780, 228, 54), "EDIT SCHEDULE", self.edit_schedule, "blue", size=14))
+        self.widgets.add(ui.Button((x + 237, 780, 228, 54), "PLAY", self.play, "primary", size=16))
+        self.widgets.add(ui.Button((x + 474, 780, 228, 54), "MAIN MENU", lambda: app.go("menu"), size=14))
         self.rebuild()
         self.set_tool("obstacle")
 
@@ -201,26 +202,47 @@ class EnvironmentEditor(Screen):
             self.app.notify(f"Loaded {os.path.basename(path)}", S.GREEN, 3)
         self.app.modal = ui.FilePicker(self.app, "LOAD ENVIRONMENT", chosen)
 
+    def edit_schedule(self):
+        """Save the environment, then open the custom schedule editor for it."""
+        path = self.save()
+        if path is None:
+            return
+        self.app.go("sched_editor", env_path=path, labels=list(self.layout.dirty_locations))
+
     def play(self):
         """Save, make sure a compatible schedule exists, and go to configuration."""
         path = self.save()
         if path is None:
             return
         labels = list(self.layout.dirty_locations)
-        sched = os.path.join(S.CUSTOM_ENV_DIR, "Schedule_" + os.path.basename(path))
-        usable = False
-        if os.path.isfile(sched):
+        default = os.path.join(S.CUSTOM_ENV_DIR, "Schedule_" + os.path.basename(path))
+        # Prefer a schedule saved from the schedule editor, then the matching
+        # Schedule_<env>.txt.  A well-formed but infeasible schedule (e.g. too
+        # few slots) is still the user's choice - the CSP reports infeasibility,
+        # so we must not silently replace it with a starter file.
+        candidates = []
+        preferred = self.app.state.sched_path
+        if preferred and os.path.isfile(preferred) and \
+                os.path.dirname(os.path.abspath(preferred)) == os.path.abspath(S.CUSTOM_ENV_DIR):
+            candidates.append(preferred)
+        candidates.append(default)
+        sched, usable = default, False
+        for candidate in candidates:
+            if not os.path.isfile(candidate):
+                continue
             try:
-                _, _, c = load_schedule_checked(sched, labels)
-                usable = c["num_slots"] >= len(labels)
+                load_schedule_checked(candidate, labels)
+                sched, usable = candidate, True
+                break
             except InputError:
-                usable = False
+                continue
         if not usable:
-            # A starter schedule in the standard format (the sample's rules),
-            # with one time slot per dirty location.  Edit the file to change it.
-            with open(sched, "w", encoding="utf-8") as f:
+            # Only generate a starter when there is no usable file at all.
+            with open(default, "w", encoding="utf-8") as f:
                 f.write(format_schedule(len(labels), [("D1", "D3"), ("D2", "D4"), ("D1", "D4")],
                                         [("D3", "T3"), ("D2", "T3")]))
+            self.app.notify("Starter schedule generated - use EDIT SCHEDULE to customise it.",
+                            S.ORANGE, 4)
         st = self.app.state
         st.env_path, st.sched_path = path, sched
         st.mission_title = "CUSTOM - " + os.path.basename(path)
