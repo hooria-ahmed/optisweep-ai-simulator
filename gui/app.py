@@ -110,6 +110,7 @@ class App:
         from gui.main_menu import MainMenu, InfoScreen
         from gui.mission_selection import MissionSelection
         from gui.environment_editor import EnvironmentEditor
+        from gui.schedule_editor import ScheduleEditor
         from gui.mission_config import MissionConfig
         from gui.simulation_screen import SimulationScreen
         from gui.algorithm_race import AlgorithmRace
@@ -117,7 +118,8 @@ class App:
         from gui.results_screen import ResultsScreen
         self._factories = {
             "menu": MainMenu, "info": InfoScreen, "missions": MissionSelection,
-            "editor": EnvironmentEditor, "config": MissionConfig, "simulation": SimulationScreen,
+            "editor": EnvironmentEditor, "sched_editor": ScheduleEditor, "config": MissionConfig,
+            "simulation": SimulationScreen,
             "race": AlgorithmRace, "analytics": AnalyticsScreen, "results": ResultsScreen,
         }
 

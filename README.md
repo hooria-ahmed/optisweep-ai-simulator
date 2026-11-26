@@ -108,9 +108,11 @@ Notes:
   aware before SDL starts (`config/dpi.py`), so the window is sized in physical pixels and the
   canvas is presented 1:1 - this keeps text sharp on 125%/150% scaled displays. Resizing the
   window preserves the 16:9 aspect ratio with letterboxing.
-- Environments saved from the editor go to `environments/`. **Play this environment** also writes a
-  starter `Schedule_<name>.txt` next to it (one slot per dirty location, the sample's five rules);
-  edit that file or pick another schedule in Mission Selection.
+- Environments saved from the editor go to `environments/`. **EDIT SCHEDULE** opens a dedicated
+  schedule editor where you can add precedence and latest-slot rules, validate them against the
+  environment's `D1..Dn` tasks, save the `Schedule_<name>.txt` file and play immediately. **PLAY**
+  still writes a starter schedule if none exists yet; you can also pick any schedule file in
+  Mission Selection.
 - A mission is reported as completed only if the simulated robot cleaned every dirty location and
   is back on the charging station. Infeasible schedules and unreachable targets end on a failure
   screen that explains the cause.

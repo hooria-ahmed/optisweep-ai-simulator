@@ -108,6 +108,7 @@ class MainMenu(Screen):
         items = [
             ("START MISSION", lambda: go("missions"), "primary"),
             ("CUSTOM ENVIRONMENT", lambda: go("editor"), "ghost"),
+            ("CUSTOM SCHEDULE", lambda: go("sched_editor"), "ghost"),
             ("ALGORITHM RACE", lambda: go("race"), "ghost"),
             ("AI ANALYTICS", lambda: go("analytics"), "ghost"),
             ("HOW TO PLAY", lambda: go("info", page="how"), "ghost"),
@@ -115,10 +116,10 @@ class MainMenu(Screen):
             ("EXIT", app.quit, "ghost"),
         ]
         self.buttons = ui.WidgetGroup(app)
-        y = 372
+        y = 368
         for label, action, style in items:
             self.buttons.add(ui.Button((96, y, 400, 54), label, action, style, size=18, align="left"))
-            y += 64
+            y += 60
         self.hero = Robot((0, 0), heading=180)
         self.demo = MenuDemo((1010, 420, 470, 410))
         self.particles = ParticleSystem()
